@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
   Container,
@@ -10,7 +10,8 @@ import {
   Form,
   Alert,
 } from "react-bootstrap";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
+import "./sticky-header.css"; // We'll create this file for custom styles
 
 // Define interfaces for our data types
 interface AttendanceRecord {
@@ -18,41 +19,55 @@ interface AttendanceRecord {
   present: boolean;
 }
 
+interface AttendanceData {
+  name: string;
+  attendance: {
+    [date: string]: boolean;
+  };
+}
+
 function App() {
-  // State for the list of names and their attendance status
+  // State for attendance records
   const [attendanceRecords, setAttendanceRecords] = useState<
     AttendanceRecord[]
   >([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<boolean>(false);
-  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [fullAttendanceData, setFullAttendanceData] = useState<
+    AttendanceData[]
+  >([]);
+  // State for sticky header
+  const [isSticky, setIsSticky] = useState<boolean>(false);
+  // Ref for header element
+  const headerRef = useRef<HTMLDivElement>(null);
 
-  // State for date selection - default to today
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-
-  // URLs for our Cloud Functions
-  const [namesUrl] = useState<string>(
-    "https://us-central1-church-attendance-46a04.cloudfunctions.net/getAttendanceNames",
+  // URLs for our Cloud Functions - simplified to only the two we need
+  const [dataUrl] = useState<string>(
+    "https://getattendancedata-yfwa26h2fa-uc.a.run.app",
   );
-  const [saveUrl] = useState<string>(
-    "https://us-central1-church-attendance-46a04.cloudfunctions.net/saveAttendance",
+  const [updateUrl] = useState<string>(
+    "https://updateattendance-yfwa26h2fa-uc.a.run.app",
   );
+  // State to track if authentication is required
   const [authRequired, setAuthRequired] = useState<boolean>(false);
 
-  // Function to fetch attendance names from the Cloud Function
-  const fetchAttendanceNames = async () => {
+  // Function to fetch attendance data from the Cloud Function
+  const fetchAttendanceData = async () => {
     try {
       setLoading(true);
       setError(null);
       setSaveSuccess(false);
       setSaveError(null);
 
-      console.log("Fetching names from:", namesUrl);
+      console.log("Fetching attendance data from:", dataUrl);
 
       // Use the fetch API with mode: 'cors' explicitly set
-      const response = await fetch(namesUrl, {
+      const response = await fetch(dataUrl, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -74,27 +89,50 @@ function App() {
       }
 
       const data = await response.json();
-      console.log("Attendance names received:", data);
+      console.log("Attendance data received:", data);
 
-      if (data && Array.isArray(data.names)) {
-        // Transform the names into attendance records with default 'not present' state
-        const records = data.names.map((name: string) => ({
-          name,
-          present: false,
-        }));
-        setAttendanceRecords(records);
+      if (
+        data &&
+        Array.isArray(data.dates) &&
+        Array.isArray(data.attendanceData)
+      ) {
+        // Store the full attendance data
+        setFullAttendanceData(data.attendanceData);
+
+        // Set available dates
+        setAvailableDates(data.dates);
+
+        // Set the initially selected date if available
+        if (data.dates.length > 0) {
+          const initialDate = data.dates[0];
+          setSelectedDate(initialDate);
+          updateAttendanceRecordsForDate(initialDate, data.attendanceData);
+        }
       } else {
         console.error("Invalid data format received:", data);
         throw new Error("Invalid data format received from server");
       }
     } catch (err) {
-      console.error("Error fetching attendance names:", err);
+      console.error("Error fetching attendance data:", err);
       setError(
-        `Failed to load attendance names: ${err instanceof Error ? err.message : "Unknown error"}`,
+        `Failed to load attendance data: ${err instanceof Error ? err.message : "Unknown error"}`,
       );
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper function to update attendance records for a specific date
+  const updateAttendanceRecordsForDate = (
+    date: string,
+    data: AttendanceData[],
+  ) => {
+    const records = data.map((item) => ({
+      name: item.name,
+      present: item.attendance[date] || false,
+    }));
+
+    setAttendanceRecords(records);
   };
 
   // Function to handle checkbox changes for attendance
@@ -102,6 +140,32 @@ function App() {
     const updatedRecords = [...attendanceRecords];
     updatedRecords[index].present = checked;
     setAttendanceRecords(updatedRecords);
+
+    // Also update the full attendance data
+    if (selectedDate && fullAttendanceData[index]) {
+      const updatedFullData = [...fullAttendanceData];
+      updatedFullData[index].attendance[selectedDate] = checked;
+      setFullAttendanceData(updatedFullData);
+    }
+  };
+
+  // Function to handle date selection change
+  // Format a date from MM/DD/YYYY to a more readable format
+  const formatDateForDisplay = (dateString: string): string => {
+    try {
+      // Parse the date from format like "7/20/2025"
+      const date = parse(dateString, "M/d/yyyy", new Date());
+      // Format to a nicer display like "July 20, 2025"
+      return format(date, "MMMM d, yyyy");
+    } catch (error) {
+      // If parsing fails, just return the original string
+      return dateString;
+    }
+  };
+
+  const handleDateChange = (date: string) => {
+    setSelectedDate(date);
+    updateAttendanceRecordsForDate(date, fullAttendanceData);
   };
 
   // Function to save attendance to the backend
@@ -111,24 +175,22 @@ function App() {
       setSaveSuccess(false);
       setSaveError(null);
 
-      console.log("Saving attendance data to:", saveUrl);
-
-      const formattedDate = format(selectedDate, "yyyy-MM-dd");
+      console.log("Updating attendance data to:", updateUrl);
 
       // Prepare data to be sent to the server
-      const saveData = {
-        date: formattedDate,
+      const updateData = {
+        date: selectedDate,
         attendance: attendanceRecords,
       };
 
-      // Send the data to our saveAttendance endpoint
-      const response = await fetch(saveUrl, {
+      // Send the data to our updateAttendance endpoint
+      const response = await fetch(updateUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         mode: "cors",
-        body: JSON.stringify(saveData),
+        body: JSON.stringify(updateData),
       });
 
       if (!response.ok) {
@@ -136,13 +198,13 @@ function App() {
       }
 
       const responseData = await response.json();
-      console.log("Save response:", responseData);
+      console.log("Update response:", responseData);
 
       setSaveSuccess(true);
     } catch (err) {
-      console.error("Error saving attendance data:", err);
+      console.error("Error updating attendance data:", err);
       setSaveError(
-        `Failed to save attendance: ${err instanceof Error ? err.message : "Unknown error"}`,
+        `Failed to update attendance: ${err instanceof Error ? err.message : "Unknown error"}`,
       );
     } finally {
       setSaving(false);
@@ -150,45 +212,144 @@ function App() {
   };
 
   useEffect(() => {
-    fetchAttendanceNames();
+    fetchAttendanceData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Add scroll event listener for sticky header
+  useEffect(() => {
+    const handleScroll = () => {
+      if (headerRef.current) {
+        const headerOffset = headerRef.current.offsetTop;
+        setIsSticky(window.pageYOffset > headerOffset);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+
+    // Clean up
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   return (
     <Container className="mt-5">
       <Row className="mb-4">
         <Col>
-          <h1 className="text-center">Church Attendance App</h1>
+          <h1 className="text-center">Sunday School Attendance</h1>
         </Col>
       </Row>
 
-      {/* Date Selection */}
-      <Row className="mb-4">
-        <Col md={6}>
-          <Form.Group controlId="attendanceDate">
-            <Form.Label>Attendance Date</Form.Label>
-            <Form.Control
-              type="date"
-              value={format(selectedDate, "yyyy-MM-dd")}
-              onChange={(e) => setSelectedDate(new Date(e.target.value))}
-            />
-          </Form.Group>
-        </Col>
-        <Col md={6} className="d-flex align-items-end">
-          <Button
-            variant="primary"
-            onClick={fetchAttendanceNames}
-            disabled={loading}
-            className="me-2"
-          >
-            Refresh Names
-          </Button>
-          <Button
-            variant="success"
-            onClick={saveAttendanceData}
-            disabled={loading || saving}
-          >
-            Save Attendance
-          </Button>
+      {/* Date Selection - Sticky Header */}
+      <div
+        className={`sticky-header ${isSticky ? "sticky" : ""}`}
+        ref={headerRef}
+      >
+        <Row className="mb-0">
+          <Col md={6}>
+            <Form.Group controlId="dateSelect">
+              <Form.Label style={{ fontSize: "1.2rem", fontWeight: 500 }}>
+                Select Sunday
+              </Form.Label>
+              <Form.Select
+                value={selectedDate}
+                onChange={(e) => handleDateChange(e.target.value)}
+                disabled={loading || availableDates.length === 0}
+                style={{ fontSize: "1.2rem" }}
+              >
+                {availableDates.length === 0 ? (
+                  <option value="">No dates available</option>
+                ) : (
+                  availableDates.map((date) => (
+                    <option key={date} value={date}>
+                      {formatDateForDisplay(date)}
+                    </option>
+                  ))
+                )}
+              </Form.Select>
+            </Form.Group>
+          </Col>
+        </Row>
+      </div>
+
+      {/* Add some spacing after the sticky header */}
+      <div className="main-content"></div>
+
+      <Row>
+        <Col>
+          {loading ? (
+            <div className="text-center">
+              <Spinner animation="border" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </Spinner>
+              <p className="mt-2">Loading attendance data...</p>
+            </div>
+          ) : error ? (
+            <Alert variant="danger">
+              <Alert.Heading>Error</Alert.Heading>
+              <p>{error}</p>
+              <Button
+                variant="primary"
+                onClick={fetchAttendanceData}
+                className="mt-2"
+              >
+                Try Again
+              </Button>
+            </Alert>
+          ) : (
+            <>
+              {attendanceRecords.length === 0 ? (
+                <p>No names available.</p>
+              ) : (
+                <ListGroup>
+                  {attendanceRecords.map((record, index) => (
+                    <ListGroup.Item
+                      key={index}
+                      className="d-flex align-items-center justify-content-between py-3"
+                      style={{ cursor: "pointer" }}
+                      onClick={() =>
+                        handleAttendanceChange(index, !record.present)
+                      }
+                    >
+                      <span style={{ fontSize: "1.2rem", fontWeight: 500 }}>
+                        {record.name}
+                      </span>
+                      <Form.Check
+                        type="checkbox"
+                        id={`attendance-${index}`}
+                        checked={record.present}
+                        onChange={(e) => {
+                          e.stopPropagation(); // Stop event from bubbling up
+                          handleAttendanceChange(index, !record.present); // Handle toggle directly
+                        }}
+                        onClick={(e) => e.stopPropagation()} // Stop propagation
+                        style={{ transform: "scale(1.5)" }}
+                        className="ms-2"
+                        label=""
+                      />
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              )}
+              {saving && (
+                <div className="mt-3 text-center">
+                  <Spinner animation="border" role="status" size="sm" />
+                  <span className="ms-2">Saving attendance data...</span>
+                </div>
+              )}
+
+              {authRequired && (
+                <Alert variant="warning" className="mt-3">
+                  <Alert.Heading>Authentication Required</Alert.Heading>
+                  <p>
+                    This function requires authentication. Please check your
+                    Firebase function permissions.
+                  </p>
+                </Alert>
+              )}
+            </>
+          )}
         </Col>
       </Row>
 
@@ -215,61 +376,24 @@ function App() {
         </Row>
       )}
 
-      <Row>
-        <Col>
-          {loading ? (
-            <div className="text-center">
-              <Spinner animation="border" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </Spinner>
-              <p className="mt-2">Loading attendance names...</p>
-            </div>
-          ) : error ? (
-            <Alert variant="danger">
-              <Alert.Heading>Error</Alert.Heading>
-              <p>{error}</p>
-              <Button
-                variant="primary"
-                onClick={fetchAttendanceNames}
-                className="mt-2"
-              >
-                Try Again
-              </Button>
-            </Alert>
-          ) : (
-            <>
-              <h3>Mark Attendance</h3>
-              {attendanceRecords.length === 0 ? (
-                <p>No names available.</p>
-              ) : (
-                <ListGroup>
-                  {attendanceRecords.map((record, index) => (
-                    <ListGroup.Item
-                      key={index}
-                      className="d-flex align-items-center"
-                    >
-                      <Form.Check
-                        type="checkbox"
-                        id={`attendance-${index}`}
-                        checked={record.present}
-                        onChange={(e) =>
-                          handleAttendanceChange(index, e.target.checked)
-                        }
-                        label={record.name}
-                        className="me-2"
-                      />
-                    </ListGroup.Item>
-                  ))}
-                </ListGroup>
-              )}
-              {saving && (
-                <div className="mt-3 text-center">
-                  <Spinner animation="border" role="status" size="sm" />
-                  <span className="ms-2">Saving attendance data...</span>
-                </div>
-              )}
-            </>
-          )}
+      {/* Date Selection */}
+      <Row className="mb-3 mt-3 ">
+        <Col md={12} className="d-flex align-items-end justify-content-center">
+          <Button
+            variant="primary"
+            onClick={fetchAttendanceData}
+            disabled={loading}
+            className="me-2"
+          >
+            Refresh Data
+          </Button>
+          <Button
+            variant="success"
+            onClick={saveAttendanceData}
+            disabled={loading || saving || !selectedDate}
+          >
+            Save Attendance
+          </Button>
         </Col>
       </Row>
     </Container>
