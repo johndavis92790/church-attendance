@@ -15,6 +15,7 @@
   "main": "src/index.js",
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^17.2.0",
     "firebase-admin": "^12.7.0",
     "firebase-functions": "^6.3.2",
     "google-auth-library": "^9.15.0",
