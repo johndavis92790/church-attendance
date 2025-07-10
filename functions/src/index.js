@@ -1,19 +1,9 @@
-/**
- * Church Attendance Firebase Cloud Functions
- */
-
-// Import required packages
 const functions = require("firebase-functions");
 const cors = require("cors")({ origin: true });
 const { google } = require("googleapis");
 const fs = require("fs");
 const path = require("path");
-
-// Load environment variables
 require("dotenv").config();
-
-// To use Google Sheets API, you'll need to set up a service account and download the JSON key
-// For development, we'll continue using mock data but provide the code structure for Google Sheets integration
 
 /**
  * Helper function to initialize Google Sheets API
@@ -21,10 +11,8 @@ require("dotenv").config();
  */
 async function getGoogleSheetsClient() {
   try {
-    // Path to service account key file
     const keyPath = path.resolve(__dirname, "../service-account-key.json");
 
-    // Check if the key file exists
     if (fs.existsSync(keyPath)) {
       const auth = new google.auth.GoogleAuth({
         keyFile: keyPath,
@@ -49,46 +37,25 @@ async function getGoogleSheetsClient() {
  */
 async function getNamesFromSheet() {
   try {
-    // Initialize sheets client
     const sheets = await getGoogleSheetsClient();
 
-    // Get Google Sheet ID and range from environment variables
     const sheetId = process.env.GOOGLE_SHEET_ID;
-    const range = process.env.NAMES_SHEET_RANGE || "Names!A2:A"; // Default to Names!A2:A if not specified
+    const range = process.env.NAMES_SHEET_RANGE;
 
-    // If we have a valid sheets client and sheet ID, fetch real data
-    if (sheets && sheetId) {
-      console.log(
-        `Fetching names from Google Sheet ${sheetId}, range ${range}`,
-      );
+    console.log(
+      `Fetching names from Google Sheet ${sheetId}, range ${range}`,
+    );
 
-      const response = await sheets.spreadsheets.values.get({
-        spreadsheetId: sheetId,
-        range: range,
-      });
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: range,
+    });
 
-      if (response.data.values && response.data.values.length > 0) {
-        return response.data.values.map((row) => row[0]); // Assuming names are in first column
-      } else {
-        console.warn("No data found in the specified range");
-        return [];
-      }
+    if (response.data.values && response.data.values.length > 0) {
+      return response.data.values.map((row) => row[0]); // Assuming names are in first column
     } else {
-      // Return mock data for development
-      console.log("Using mock data for names");
-      return [
-        "Ainsa, Benjamin David",
-        "Ainsa, Jeff",
-        "Ainsa, Kristin",
-        "Andersen, David",
-        "Anderson, Sundar",
-        "Armstrong, Ellie",
-        "Davis, John",
-        "Smith, Jane",
-        "Johnson, Robert",
-        "Williams, Emily",
-        "Garcia, Maria",
-      ];
+      console.warn("No data found in the specified range");
+      return [];
     }
   } catch (error) {
     console.error("Error getting names from sheet:", error);
@@ -103,17 +70,8 @@ exports.getAttendanceNames = functions.https.onRequest((req, res) => {
   // Wrap the function in cors middleware
   return cors(req, res, async () => {
     try {
-      console.log("Getting attendance names");
+      const names = await getNamesFromSheet();
 
-      // Configuration for Google Sheets
-      // In production, these would come from environment variables
-      const sheetId = "your-google-sheet-id"; // You'll replace this with your actual Sheet ID
-      const range = "Sheet1!A2:A"; // Assumes names start from A2 and continue down column A
-
-      // Get names from the sheet (or mock data for now)
-      const names = await getNamesFromSheet(sheetId, range);
-
-      // Send the response
       res.status(200).send({ names });
     } catch (error) {
       console.error("Error in getAttendanceNames:", error);

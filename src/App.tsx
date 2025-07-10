@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
   Container,
@@ -150,9 +150,7 @@ function App() {
   };
 
   useEffect(() => {
-    // Call the fetch function when component mounts
     fetchAttendanceNames();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -162,37 +160,6 @@ function App() {
           <h1 className="text-center">Church Attendance App</h1>
         </Col>
       </Row>
-
-      {authRequired && (
-        <Row className="mb-4">
-          <Col>
-            <Alert variant="danger">
-              <Alert.Heading>Access Permission Required</Alert.Heading>
-              <p>The Cloud Function requires authentication. To fix this:</p>
-              <ol>
-                <li>
-                  Go to the Google Cloud Console{" "}
-                  <a
-                    href="https://console.cloud.google.com/run"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Cloud Run
-                  </a>{" "}
-                  section
-                </li>
-                <li>
-                  Select the Cloud Function service for getAttendanceNames
-                </li>
-                <li>
-                  Click on "Permissions" and add the "Cloud Run Invoker"
-                  permission for "allUsers"
-                </li>
-              </ol>
-            </Alert>
-          </Col>
-        </Row>
-      )}
 
       {/* Date Selection */}
       <Row className="mb-4">
