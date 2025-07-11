@@ -1,8 +1,7 @@
 const functions = require("firebase-functions");
 const cors = require("cors")({ origin: true });
 const { google } = require("googleapis");
-const fs = require("fs");
-const path = require("path");
+// No longer need file system access for service account key
 require("dotenv").config();
 
 const ATTENDANCE_SHEET_NAME = "Attendance";
@@ -12,13 +11,19 @@ const ATTENDANCE_SHEET_RANGE = `${ATTENDANCE_SHEET_NAME}!${ATTENDANCE_SHEET_FIRS
 
 /**
  * Helper function to initialize Google Sheets API
- * Uses the service account key file to authenticate with Google Sheets
+ * Uses the service account credentials from Firebase Functions config
  */
 async function getGoogleSheetsClient() {
   try {
+    console.log("Initializing Google Sheets client...");
+
+    // Check for service account key file as the primary method
+    const fs = require("fs");
+    const path = require("path");
     const keyPath = path.resolve(__dirname, "../service-account-key.json");
 
     if (fs.existsSync(keyPath)) {
+      console.log("Using service account key file");
       const auth = new google.auth.GoogleAuth({
         keyFile: keyPath,
         scopes: ["https://www.googleapis.com/auth/spreadsheets"],
@@ -27,7 +32,7 @@ async function getGoogleSheetsClient() {
       const authClient = await auth.getClient();
       return google.sheets({ version: "v4", auth: authClient });
     } else {
-      console.warn("Service account key file not found, using mock data");
+      console.error("Service account key file not found");
       return null;
     }
   } catch (error) {
@@ -44,7 +49,13 @@ async function getAttendanceDataFromSheet() {
   try {
     const sheets = await getGoogleSheetsClient();
 
+    // Get the Sheet ID from environment variable
     const sheetId = process.env.GOOGLE_SHEET_ID;
+    if (!sheetId) {
+      console.error("Missing sheet ID in environment variables");
+      return false;
+    }
+
     const range = ATTENDANCE_SHEET_RANGE;
 
     console.log(
@@ -125,9 +136,11 @@ async function updateAttendanceInSheet(date, attendanceData) {
     return false;
   }
 
+  // Get the Sheet ID from environment variable
   const sheetId = process.env.GOOGLE_SHEET_ID;
+
   if (!sheetId) {
-    console.error("Missing sheet ID");
+    console.error("Missing sheet ID in environment variables");
     return false;
   }
 

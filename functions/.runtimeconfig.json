@@ -1,0 +1,27 @@
+{
+  "sheets": {
+    "credentials": {
+      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+      "project_id": "church-attendance-46a04",
+      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/church-attendance-app%40church-attendance-46a04.iam.gserviceaccount.com",
+      "token_uri": "https://oauth2.googleapis.com/token",
+      "type": "service_account",
+      "client_id": "101341625924272295090",
+      "client_email": "church-attendance-app@church-attendance-46a04.iam.gserviceaccount.com",
+      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+      "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDPjAxOynOPhCpF\nFe6NuBtSXUH9wjQ4HNAHuPrLLvsDtKdUmnljnmCBwH6aIb2p6YO/+SaR/AeGm5Eb\nCnLwynyA+q7WlHAV9NF+AFjqqRZD15PfyhWpwEccKF49gB3hblO89uw4KKZymHgM\ngA7yvAwX4ox+aUy+WnFD+/rGgTAad/977ypP1Lc7mVUfY6hN9buCi2AGa+1VOgHN\nLU3e2jsS4af4STAIlTKB50h/bpBPeQl5VTG0HOqGB0VN02VUdGdK5gl+SzjoiPQS\n7fpblPB72fy2J+bKWlbu8IyX40BQ6+t+YJGMilZ1PWHBkHMzXMypFwpsBOJI+KYt\n2kcQU/czAgMBAAECggEABymr0aQFLkFMy00n9/0iZfher5kVJGwL2sc7dtdBBcUT\nG+De6p1Lu8fH21Uy6f/G6XX6BkuexEy4Sqj5TPdlvC2GD1UPaqhIsb5Td9U1o5NT\nAM1FItb9Kv1APRXWn9+5O/ft54VoMuOM52D3LD77mUqR7tl+xS9OT9XWEpNOq3n6\nqhWGS6N82LScB+8H96tv4hayNLeaMfjek+iRcFAVr5aAm28ZRWyLgLg+BCkHNi9m\nYyyceladTeN5pEX679fI+Jg77xkd2IPUpvM7RRaOlpJP0YhAGu7Gi8GC/HNwR7Am\nLgJACrkgW3AHXYX/AbEF9RO8YjbR2YN5hp8p/mLaiQKBgQDnkJ+i+LFZjRk/szQz\nWE43aqpfqsCzvbsYUpowew4iPM/CeknXqcB9laBMYjhMHH21Cp8ZkSxybmDVrU7M\nfJy51aocVJYYKuYXbCx195CkiAb2qK68/L/HnJWBmgINHk3B0Eiq439oCXp9lJZu\n84jazt8KV0W5/pjVpMd0Jv9/awKBgQDlcp40sFgk5cWZ2BNuN/FpYwZTwLloQYZF\nf7+dH9feTuPAZBIq0atxZPYUVJ55xrEMTRAuKiw28B3yonoQLy4RGTlP1KSyvAHi\nz/wMnOt9Pv+dYeCO7eYxrH4o0fbhj5dQXQMsoshFwpZHQU0Iya8Jpnq+UXSaC0cD\nuXqgKJPBWQKBgG0kPCmK/8QOfe0JILxmjY8PBjhK+cJ91XYUULoy9alrchzemHk+\neAx4/nGiBZjSAOnYlL5vLzzMC3YK1k4JGbF5JFFwCMJhTcuSX65GPfVea7HMNXe7\nxQRnKAxKs1bNhqan7egli8JUXVhdNT4cKM/Am117XtDYT966aIu1acz7AoGBAMe8\nARBoujJUerEzsaZuuI4/D5D04fFpqNLzJABJagcxsX0XH+F6Z73sX3LPPq1PU2wb\n4YvuVlL0r306BvvztixYQtXFjCGzHAkveIAaUbzTjHyaaXrCiXKQb7plHH66GsRw\nU4UVpzVi8KLSq5aMyvyhmZP3IIPAcW9ClQa6i/TxAoGBAJPmn/zzMzW/77UwqHJT\nnSASYCIX3wwuASbHkBXfulMer58jYs6FXWN+CXbjh4s773wv9L8WG6MZ1FiFdBkP\ns62oWcH6HtqJTvgjEQBhWuRijXXZ4H7FAtqCkVumIfkj9qCBqLVDTom8gHzi5jz0\nFKcmm0l60/H3FXlQ/jOJT/JG\n-----END PRIVATE KEY-----\n",
+      "private_key_id": "60809f8fc9e2cdbabd7ad525aa7da1f5de75e93a",
+      "universe_domain": "googleapis.com"
+    }
+  },
+  "app": {
+    "measurementid": "G-2X120JYJHR",
+    "storagebucket": "church-attendance-46a04.firebasestorage.app",
+    "sheetid": "1GcL6fnfT2VoXqQOyVEcD2gsW2wl87HC6TcikJ89RIps",
+    "apikey": "AIzaSyA21fvueWlw0Z-ea5Ajn70iunFvZlmE_CA",
+    "appid": "1:736560032232:web:173c4599b2bfb47d201c5d",
+    "projectid": "church-attendance-46a04",
+    "messagingsenderid": "736560032232",
+    "authdomain": "church-attendance-46a04.firebaseapp.com"
+  }
+}

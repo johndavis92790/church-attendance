@@ -9,6 +9,8 @@ import {
   Button,
   Form,
   Alert,
+  Nav,
+  Tab,
 } from "react-bootstrap";
 import { format, parse } from "date-fns";
 import "./sticky-header.css"; // We'll create this file for custom styles
@@ -20,6 +22,7 @@ import {
 } from "firebase/auth";
 import { auth } from "./firebase-config";
 import { isUserAuthorized } from "./auth-config";
+import UserManagement from "./components/UserManagement";
 
 // Define interfaces for our data types
 interface AttendanceRecord {
@@ -39,74 +42,67 @@ function App() {
   const [attendanceRecords, setAttendanceRecords] = useState<
     AttendanceRecord[]
   >([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [saving, setSaving] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
-  const [availableDates, setAvailableDates] = useState<string[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>("");
+
+  // State for all attendance data
   const [fullAttendanceData, setFullAttendanceData] = useState<
     AttendanceData[]
   >([]);
-  // State for sticky header
-  const [isSticky, setIsSticky] = useState<boolean>(false);
-  // Ref for header element
-  const headerRef = useRef<HTMLDivElement>(null);
 
-  // URLs for our Cloud Functions - simplified to only the two we need
-  const [dataUrl] = useState<string>(
-    "https://getattendancedata-yfwa26h2fa-uc.a.run.app",
-  );
-  const [updateUrl] = useState<string>(
-    "https://updateattendance-yfwa26h2fa-uc.a.run.app",
-  );
-  // State to track if authentication is required
-  const [authRequired, setAuthRequired] = useState<boolean>(false);
+  // Available dates for the dropdown
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
 
-  // Authentication state
+  // Selected date for viewing attendance
+  const [selectedDate, setSelectedDate] = useState<string>("");
+
+  // Loading state for data fetching
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Error state for data fetching
+  const [error, setError] = useState<string | null>(null);
+
+  // Saving state for attendance updates
+  const [saving, setSaving] = useState<boolean>(false);
+
+  // Success state for attendance updates
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+
+  // Error state for attendance updates
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // State for user authentication
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthorized, setIsAuthorized] = useState<boolean>(false);
 
-  // Handle authentication state changes
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-      setAuthLoading(true);
-      setUser(currentUser);
+  // State for sticky header
+  const [isSticky, setIsSticky] = useState<boolean>(false);
 
-      if (currentUser) {
-        // Check if user's email is in the whitelist
-        const authorized = isUserAuthorized(currentUser.email);
-        setIsAuthorized(authorized);
+  // Ref for header element
+  const headerRef = useRef<HTMLDivElement>(null);
 
-        if (authorized) {
-          // If authorized, fetch attendance data
-          await fetchAttendanceData();
-        } else {
-          setAuthError("You are not authorized to access this application.");
-          // Sign out unauthorized users
-          await signOut(auth);
-        }
-      }
+  // State for active tab
+  const [activeTab, setActiveTab] = useState<string>("attendance");
 
-      setAuthLoading(false);
-    });
+  // URLs for our Cloud Functions
+  const [dataUrl] = useState<string>(
+    "https://getattendancedata-yfwa26h2fa-uc.a.run.app",
+  );
 
-    return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [updateUrl] = useState<string>(
+    "https://updateattendance-yfwa26h2fa-uc.a.run.app",
+  );
 
-  // Handle Google sign-in
+  // Handle Google Sign-in
   const handleSignIn = async () => {
     try {
-      setAuthLoading(true);
       setAuthError(null);
+      setAuthLoading(true);
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
     } catch (error: any) {
-      setAuthError(error.message);
+      console.error("Error signing in:", error);
+      setAuthError(`Error signing in: ${error.message}`);
     } finally {
       setAuthLoading(false);
     }
@@ -115,14 +111,16 @@ function App() {
   // Handle sign-out
   const handleSignOut = async () => {
     try {
+      setAuthError(null);
+      setAuthLoading(true);
       await signOut(auth);
-      // Clear data on sign out
-      setAttendanceRecords([]);
-      setFullAttendanceData([]);
-      setAvailableDates([]);
-      setSelectedDate("");
+      setUser(null);
+      setIsAuthorized(false);
     } catch (error: any) {
-      setAuthError(error.message);
+      console.error("Error signing out:", error);
+      setAuthError(`Error signing out: ${error.message}`);
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -131,63 +129,34 @@ function App() {
     try {
       setLoading(true);
       setError(null);
-      setSaveSuccess(false);
-      setSaveError(null);
 
-      console.log("Fetching attendance data from:", dataUrl);
-
-      // Use the fetch API with mode: 'cors' explicitly set
-      const response = await fetch(dataUrl, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        mode: "cors",
-      });
-
+      const response = await fetch(dataUrl);
       if (!response.ok) {
-        console.error("Response not OK:", response.status, response.statusText);
-
-        if (response.status === 403) {
-          setAuthRequired(true);
-          throw new Error(
-            "Access to this function requires authentication. Please configure Firebase function permissions.",
-          );
-        } else {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log("Attendance data received:", data);
+      console.log("Fetched attendance data:", data);
 
-      if (
-        data &&
-        Array.isArray(data.dates) &&
-        Array.isArray(data.attendanceData)
-      ) {
-        // Store the full attendance data
-        setFullAttendanceData(data.attendanceData);
+      // Store the full attendance data
+      setFullAttendanceData(data.attendanceData);
 
-        // Set available dates
-        setAvailableDates(data.dates);
+      // Get available dates
+      setAvailableDates(data.dates);
 
-        // Set the initially selected date if available
-        if (data.dates.length > 0) {
-          const initialDate = data.dates[0];
-          setSelectedDate(initialDate);
-          updateAttendanceRecordsForDate(initialDate, data.attendanceData);
-        }
-      } else {
-        console.error("Invalid data format received:", data);
-        throw new Error("Invalid data format received from server");
+      // Set the most recent date as the default selection
+      const initialDate = data.dates.length > 0 ? data.dates[0] : "";
+      setSelectedDate(initialDate);
+
+      // Update the attendance records for the selected date
+      if (initialDate) {
+        updateAttendanceRecordsForDate(initialDate, data.attendanceData);
       }
-    } catch (err) {
-      console.error("Error fetching attendance data:", err);
-      setError(
-        `Failed to load attendance data: ${err instanceof Error ? err.message : "Unknown error"}`,
-      );
-    } finally {
+
+      setLoading(false);
+    } catch (error: any) {
+      console.error("Error fetching attendance data:", error);
+      setError(`Error fetching attendance data: ${error.message}`);
       setLoading(false);
     }
   };
@@ -197,11 +166,10 @@ function App() {
     date: string,
     data: AttendanceData[],
   ) => {
-    const records = data.map((item) => ({
-      name: item.name,
-      present: item.attendance[date] || false,
+    const records = data.map((person) => ({
+      name: person.name,
+      present: person.attendance[date] || false,
     }));
-
     setAttendanceRecords(records);
   };
 
@@ -211,28 +179,22 @@ function App() {
     updatedRecords[index].present = checked;
     setAttendanceRecords(updatedRecords);
 
-    // Also update the full attendance data
-    if (selectedDate && fullAttendanceData[index]) {
-      const updatedFullData = [...fullAttendanceData];
-      updatedFullData[index].attendance[selectedDate] = checked;
-      setFullAttendanceData(updatedFullData);
+    // Reset success/error messages when changes are made
+    setSaveSuccess(false);
+    setSaveError(null);
+  };
+
+  // Format a date from MM/DD/YYYY to a more readable format
+  const formatDateForDisplay = (dateString: string): string => {
+    try {
+      const date = parse(dateString, "MM/dd/yyyy", new Date());
+      return format(date, "MMMM d, yyyy");
+    } catch (error) {
+      return dateString; // If parsing fails, return the original string
     }
   };
 
   // Function to handle date selection change
-  // Format a date from MM/DD/YYYY to a more readable format
-  const formatDateForDisplay = (dateString: string): string => {
-    try {
-      // Parse the date from format like "7/20/2025"
-      const date = parse(dateString, "M/d/yyyy", new Date());
-      // Format to a nicer display like "July 20, 2025"
-      return format(date, "MMMM d, yyyy");
-    } catch (error) {
-      // If parsing fails, just return the original string
-      return dateString;
-    }
-  };
-
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
     updateAttendanceRecordsForDate(date, fullAttendanceData);
@@ -245,56 +207,93 @@ function App() {
       setSaveSuccess(false);
       setSaveError(null);
 
-      console.log("Updating attendance data to:", updateUrl);
+      // Update the fullAttendanceData with the current attendance records
+      const updatedFullData = [...fullAttendanceData];
+      attendanceRecords.forEach((record) => {
+        const personIndex = updatedFullData.findIndex(
+          (p) => p.name === record.name,
+        );
+        if (personIndex >= 0) {
+          updatedFullData[personIndex].attendance[selectedDate] =
+            record.present;
+        }
+      });
 
-      // Prepare data to be sent to the server
-      const updateData = {
+      // Create the payload to send to the backend
+      const payload = {
         date: selectedDate,
-        attendance: attendanceRecords,
+        attendanceData: attendanceRecords.map((record) => ({
+          name: record.name,
+          present: record.present,
+        })),
       };
 
-      // Send the data to our updateAttendance endpoint
+      // Send the update to the backend
       const response = await fetch(updateUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        mode: "cors",
-        body: JSON.stringify(updateData),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
-      const responseData = await response.json();
-      console.log("Update response:", responseData);
-
+      // Update local state with the changes
+      setFullAttendanceData(updatedFullData);
       setSaveSuccess(true);
-    } catch (err) {
-      console.error("Error updating attendance data:", err);
-      setSaveError(
-        `Failed to update attendance: ${err instanceof Error ? err.message : "Unknown error"}`,
-      );
+    } catch (error: any) {
+      console.error("Error saving attendance data:", error);
+      setSaveError(`Error saving attendance data: ${error.message}`);
     } finally {
       setSaving(false);
     }
   };
 
+  // Handle authentication state changes
   useEffect(() => {
-    fetchAttendanceData();
+    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+      setAuthLoading(true);
+      setUser(currentUser);
+
+      if (currentUser) {
+        try {
+          // Check if user's email is in the whitelist
+          const authorized = await isUserAuthorized(currentUser.email);
+          setIsAuthorized(authorized);
+
+          if (authorized) {
+            // If authorized, fetch attendance data
+            await fetchAttendanceData();
+          } else {
+            setAuthError("You are not authorized to access this application.");
+            // Sign out unauthorized users
+            await signOut(auth);
+          }
+        } catch (error) {
+          console.error("Error checking authorization:", error);
+          setAuthError("Error checking authorization. Please try again later.");
+        }
+      }
+
+      setAuthLoading(false);
+    });
+
+    return () => unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Add scroll event listener for sticky header
-  useEffect(() => {
-    const handleScroll = () => {
-      if (headerRef.current) {
-        const headerOffset = headerRef.current.offsetTop;
-        setIsSticky(window.pageYOffset > headerOffset);
-      }
-    };
+  // Handle scroll events for sticky header
+  const handleScroll = () => {
+    if (headerRef.current) {
+      const headerTop = headerRef.current.getBoundingClientRect().top;
+      setIsSticky(headerTop <= 0);
+    }
+  };
 
+  useEffect(() => {
     window.addEventListener("scroll", handleScroll);
 
     // Clean up
@@ -351,7 +350,6 @@ function App() {
         </Alert>
       )}
 
-      {/* Show content only to authorized users */}
       {!user ? (
         <div className="text-center py-5">
           <Alert variant="info">
@@ -368,123 +366,153 @@ function App() {
         </div>
       ) : (
         <>
-          {/* Date Selection - Sticky Header */}
-          <div
-            className={`sticky-header ${isSticky ? "sticky" : ""}`}
-            ref={headerRef}
-          >
-            <Row className="mb-0">
-              <Col md={6}>
-                <Form.Group controlId="dateSelect">
-                  <Form.Label style={{ fontSize: "1.2rem", fontWeight: 500 }}>
-                    Select Sunday
-                  </Form.Label>
-                  <Form.Select
-                    value={selectedDate}
-                    onChange={(e) => handleDateChange(e.target.value)}
-                    disabled={loading || availableDates.length === 0}
-                    style={{ fontSize: "1.2rem" }}
-                  >
-                    {availableDates.length === 0 ? (
-                      <option value="">No dates available</option>
-                    ) : (
-                      availableDates.map((date) => (
-                        <option key={date} value={date}>
-                          {formatDateForDisplay(date)}
-                        </option>
-                      ))
-                    )}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
-          </div>
+          {/* Date Selection - Sticky Header (only for attendance tab) */}
+          {activeTab === "attendance" && (
+            <div
+              className={`sticky-header ${isSticky ? "sticky" : ""}`}
+              ref={headerRef}
+            >
+              <Row className="mb-0">
+                <Col md={6}>
+                  <Form.Group controlId="dateSelect">
+                    <Form.Label style={{ fontSize: "1.2rem", fontWeight: 500 }}>
+                      Select Sunday
+                    </Form.Label>
+                    <Form.Select
+                      value={selectedDate}
+                      onChange={(e) => handleDateChange(e.target.value)}
+                      disabled={loading || availableDates.length === 0}
+                      style={{ fontSize: "1.2rem" }}
+                    >
+                      {availableDates.length === 0 ? (
+                        <option value="">No dates available</option>
+                      ) : (
+                        availableDates.map((date) => (
+                          <option key={date} value={date}>
+                            {formatDateForDisplay(date)}
+                          </option>
+                        ))
+                      )}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+            </div>
+          )}
 
           {/* Add some spacing after the sticky header */}
-          <div className="main-content"></div>
+          <div className="main-content mb-3"></div>
 
-          {/* Attendance content */}
-          <Row>
-            <Col>
-              {loading ? (
-                <div className="text-center py-5">
-                  <Spinner animation="border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </Spinner>
-                </div>
-              ) : error ? (
-                <Alert variant="danger">{error}</Alert>
-              ) : attendanceRecords.length > 0 ? (
-                <div>
-                  <ListGroup>
-                    {attendanceRecords.map((record, index) => (
-                      <ListGroup.Item
-                        key={index}
-                        className="d-flex align-items-center justify-content-between py-3"
-                        style={{ cursor: "pointer" }}
-                        onClick={() =>
-                          handleAttendanceChange(index, !record.present)
-                        }
-                      >
-                        <span style={{ fontSize: "1.2rem", fontWeight: 500 }}>
-                          {record.name}
-                        </span>
-                        <Form.Check
-                          type="checkbox"
-                          id={`attendance-${index}`}
-                          checked={record.present}
-                          onChange={(e) => {
-                            e.stopPropagation(); // Stop event from bubbling up
-                            handleAttendanceChange(index, !record.present); // Handle toggle directly
-                          }}
-                          onClick={(e) => e.stopPropagation()} // Stop propagation
-                          style={{ transform: "scale(1.5)" }}
-                          className="ms-2"
-                          label=""
-                        />
-                      </ListGroup.Item>
-                    ))}
-                  </ListGroup>
+          {/* Tab navigation */}
+          <Nav
+            variant="tabs"
+            className="mb-4"
+            activeKey={activeTab}
+            onSelect={(k) => k && setActiveTab(k)}
+          >
+            <Nav.Item>
+              <Nav.Link eventKey="attendance">Attendance</Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+              <Nav.Link eventKey="users">Manage Users</Nav.Link>
+            </Nav.Item>
+          </Nav>
 
-                  <div className="mt-4 d-flex gap-3">
-                    <Button
-                      variant="primary"
-                      onClick={saveAttendanceData}
-                      disabled={saving}
-                    >
-                      {saving ? (
-                        <>
-                          <Spinner
-                            as="span"
-                            animation="border"
-                            size="sm"
-                            role="status"
-                            aria-hidden="true"
-                          />
-                          <span className="ms-2">Saving...</span>
-                        </>
-                      ) : (
-                        "Save Changes"
-                      )}
-                    </Button>
+          {/* Tab content */}
+          <Tab.Content>
+            <Tab.Pane active={activeTab === "attendance"}>
+              {/* Attendance content */}
+              <Row>
+                <Col>
+                  {loading ? (
+                    <div className="text-center py-5">
+                      <Spinner animation="border" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </Spinner>
+                    </div>
+                  ) : error ? (
+                    <Alert variant="danger">{error}</Alert>
+                  ) : attendanceRecords.length > 0 ? (
+                    <div>
+                      <ListGroup>
+                        {attendanceRecords.map((record, index) => (
+                          <ListGroup.Item
+                            key={index}
+                            className="d-flex align-items-center justify-content-between py-3"
+                            style={{ cursor: "pointer" }}
+                            onClick={() =>
+                              handleAttendanceChange(index, !record.present)
+                            }
+                          >
+                            <span
+                              style={{ fontSize: "1.2rem", fontWeight: 500 }}
+                            >
+                              {record.name}
+                            </span>
+                            <Form.Check
+                              type="checkbox"
+                              id={`attendance-${index}`}
+                              checked={record.present}
+                              onChange={(e) => {
+                                e.stopPropagation(); // Stop event from bubbling up
+                                handleAttendanceChange(index, !record.present); // Handle toggle directly
+                              }}
+                              onClick={(e) => e.stopPropagation()} // Stop propagation
+                              style={{ transform: "scale(1.5)" }}
+                              className="ms-2"
+                              label=""
+                            />
+                          </ListGroup.Item>
+                        ))}
+                      </ListGroup>
 
-                    {saveSuccess && (
-                      <Alert
-                        variant="success"
-                        className="mb-0 py-2 px-3 d-inline-block"
-                      >
-                        Saved successfully!
-                      </Alert>
-                    )}
+                      <div className="mt-4 d-flex gap-3">
+                        <Button
+                          variant="primary"
+                          onClick={saveAttendanceData}
+                          disabled={saving}
+                        >
+                          {saving ? (
+                            <>
+                              <Spinner
+                                as="span"
+                                animation="border"
+                                size="sm"
+                                role="status"
+                                aria-hidden="true"
+                              />
+                              <span className="ms-2">Saving...</span>
+                            </>
+                          ) : (
+                            "Save Changes"
+                          )}
+                        </Button>
 
-                    {saveError && <Alert variant="danger">{saveError}</Alert>}
-                  </div>
-                </div>
-              ) : (
-                <Alert variant="info">No attendance data available.</Alert>
-              )}
-            </Col>
-          </Row>
+                        {saveSuccess && (
+                          <Alert
+                            variant="success"
+                            className="mb-0 py-2 px-3 d-inline-block"
+                          >
+                            Saved successfully!
+                          </Alert>
+                        )}
+
+                        {saveError && (
+                          <Alert variant="danger">{saveError}</Alert>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <Alert variant="info">No attendance data available.</Alert>
+                  )}
+                </Col>
+              </Row>
+            </Tab.Pane>
+            <Tab.Pane active={activeTab === "users"}>
+              {/* User management content */}
+              <UserManagement currentUserEmail={user?.email || ""} />
+            </Tab.Pane>
+          </Tab.Content>
         </>
       )}
     </Container>
