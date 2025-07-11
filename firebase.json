@@ -18,7 +18,11 @@
         "headers": [
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; connect-src 'self' https://*.cloudfunctions.net https://*.run.app https://*.googleapis.com; script-src 'self' https://apis.google.com https://www.gstatic.com 'unsafe-inline';"
+            "value": "default-src 'self'; connect-src 'self' https://*.cloudfunctions.net https://*.run.app https://*.googleapis.com https://*.firebase.io https://firestore.googleapis.com; script-src 'self' https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com https://*.firebaseio.com 'unsafe-inline' 'unsafe-eval'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net data:; img-src 'self' https://www.gstatic.com data:; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://*.googleapis.com;"
+          },
+          {
+            "key": "Cross-Origin-Opener-Policy",
+            "value": "same-origin-allow-popups"
           }
         ]
       }
