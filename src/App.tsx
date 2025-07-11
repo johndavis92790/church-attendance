@@ -139,7 +139,7 @@ function App() {
       console.log("Fetched attendance data:", data);
 
       // Store the full attendance data
-      setFullAttendanceData(data.attendanceData);
+      setFullAttendanceData(data.attendance);
 
       // Get available dates
       setAvailableDates(data.dates);
@@ -150,7 +150,7 @@ function App() {
 
       // Update the attendance records for the selected date
       if (initialDate) {
-        updateAttendanceRecordsForDate(initialDate, data.attendanceData);
+        updateAttendanceRecordsForDate(initialDate, data.attendance);
       }
 
       setLoading(false);

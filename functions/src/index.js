@@ -72,7 +72,7 @@ async function getAttendanceDataFromSheet() {
       const dates = headerRow.slice(1); // All columns after the first one (Name) are dates
 
       // Extract names and attendance data
-      const attendanceData = response.data.values.slice(1).map((row) => {
+      const attendance = response.data.values.slice(1).map((row) => {
         const name = row[0];
         const attendance = {};
 
@@ -89,13 +89,13 @@ async function getAttendanceDataFromSheet() {
 
       return {
         dates,
-        attendanceData,
+        attendance,
       };
     } else {
       console.warn("No data found in the specified range");
       return {
         dates: [],
-        attendanceData: [],
+        attendance: [],
       };
     }
   } catch (error) {
@@ -115,7 +115,7 @@ exports.getAttendanceData = functions.https.onRequest((req, res) => {
 
       res.status(200).send({
         dates: data.dates,
-        attendanceData: data.attendanceData,
+        attendance: data.attendance,
       });
     } catch (error) {
       console.error("Error in getAttendanceData:", error);
@@ -128,7 +128,7 @@ exports.getAttendanceData = functions.https.onRequest((req, res) => {
  * Helper function to update attendance data for a specific date in Google Sheets
  * Uses batch update to update all values in a single API call
  */
-async function updateAttendanceInSheet(date, attendanceData) {
+async function updateAttendanceInSheet(date, attendance) {
   const sheets = await getGoogleSheetsClient();
 
   if (!sheets) {
@@ -175,7 +175,7 @@ async function updateAttendanceInSheet(date, attendanceData) {
     const updatedNames = [];
 
     // For each name in the attendance data, find the row and add to batch update
-    for (const record of attendanceData) {
+    for (const record of attendance) {
       const name = record.name;
       const isPresent = record.present;
 
