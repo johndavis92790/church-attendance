@@ -222,7 +222,7 @@ function App() {
       // Create the payload to send to the backend
       const payload = {
         date: selectedDate,
-        attendanceData: attendanceRecords.map((record) => ({
+        attendance: attendanceRecords.map((record) => ({
           name: record.name,
           present: record.present,
         })),
