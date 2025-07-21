@@ -1,9 +1,5 @@
 import { ListGroup, Form } from "react-bootstrap";
-
-interface AttendanceRecord {
-  name: string;
-  present: boolean;
-}
+import { AttendanceRecord } from "../App";
 
 interface AttendanceListProps {
   attendanceRecords: AttendanceRecord[];
@@ -20,12 +16,23 @@ const AttendanceList: React.FC<AttendanceListProps> = ({
         <ListGroup.Item
           key={index}
           className="d-flex align-items-center justify-content-between py-3"
-          style={{ cursor: "pointer" }}
+          style={{
+            cursor: "pointer",
+            backgroundColor: record.newMember ? "#e8f5e8" : "transparent",
+            borderLeft: record.newMember ? "4px solid #28a745" : "none",
+          }}
           onClick={() => onAttendanceChange(index, !record.present)}
         >
-          <span style={{ fontSize: "1.2rem", fontWeight: 500 }}>
-            {record.name}
-          </span>
+          <div>
+            <span style={{ fontSize: "1.2rem", fontWeight: 500 }}>
+              {record.name}
+            </span>
+            {record.newMember && (
+              <div>
+                <small className="text-success fw-bold">New Member</small>
+              </div>
+            )}
+          </div>
           <Form.Check
             type="checkbox"
             id={`attendance-${index}`}

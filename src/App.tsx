@@ -22,9 +22,10 @@ import AttendancePage from "./pages/AttendancePage";
 import UserManagementPage from "./pages/UserManagementPage";
 
 // Define interfaces for our data types
-interface AttendanceRecord {
+export interface AttendanceRecord {
   name: string;
   present: boolean;
+  newMember?: boolean;
 }
 
 interface AttendanceData {
@@ -184,6 +185,35 @@ function App() {
     updateAttendanceRecordsForDate(date, fullAttendanceData);
   };
 
+  // Function to add a new member to the attendance list
+  const handleAddNewMember = (firstName: string, lastName: string) => {
+    const fullName = `${lastName}, ${firstName}`.trim();
+    
+    // Check if member already exists
+    const existingMember = attendanceRecords.find(
+      (record) => record.name.toLowerCase() === fullName.toLowerCase()
+    );
+    
+    if (existingMember) {
+      return false; // Member already exists
+    }
+    
+    // Add new member to the current attendance records
+    const newMember: AttendanceRecord = {
+      name: fullName,
+      present: true, // Default to checked
+      newMember: true // Mark as new member
+    };
+    
+    setAttendanceRecords([...attendanceRecords, newMember]);
+    
+    // Reset success/error messages when changes are made
+    setSaveSuccess(false);
+    setSaveError(null);
+    
+    return true; // Successfully added
+  };
+
   // Function to save attendance to the backend
   const saveAttendanceData = async () => {
     try {
@@ -332,6 +362,7 @@ function App() {
                   onDateChange={handleDateChange}
                   onAttendanceChange={handleAttendanceChange}
                   onSave={saveAttendanceData}
+                  onAddNewMember={handleAddNewMember}
                 />
               }
             />

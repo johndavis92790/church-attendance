@@ -1,15 +1,13 @@
-import { forwardRef } from "react";
+import { forwardRef, useState } from "react";
 import { Row, Col, Alert } from "react-bootstrap";
 import DateSelector from "../components/DateSelector";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorAlert from "../components/ErrorAlert";
 import AttendanceList from "../components/AttendanceList";
 import SaveControls from "../components/SaveControls";
-
-interface AttendanceRecord {
-  name: string;
-  present: boolean;
-}
+import FloatingAddButton from "../components/FloatingAddButton";
+import AddMemberModal from "../components/AddMemberModal";
+import { AttendanceRecord } from "../App";
 
 interface AttendancePageProps {
   selectedDate: string;
@@ -24,6 +22,7 @@ interface AttendancePageProps {
   onDateChange: (date: string) => void;
   onAttendanceChange: (index: number, checked: boolean) => void;
   onSave: () => void;
+  onAddNewMember: (firstName: string, lastName: string) => boolean;
 }
 
 const AttendancePage = forwardRef<HTMLDivElement, AttendancePageProps>(
@@ -41,9 +40,14 @@ const AttendancePage = forwardRef<HTMLDivElement, AttendancePageProps>(
       onDateChange,
       onAttendanceChange,
       onSave,
+      onAddNewMember,
     },
     ref,
   ) => {
+    const [showAddModal, setShowAddModal] = useState(false);
+
+    const handleShowAddModal = () => setShowAddModal(true);
+    const handleCloseAddModal = () => setShowAddModal(false);
     return (
       <>
         {/* Date Selection - Sticky Header */}
@@ -84,6 +88,16 @@ const AttendancePage = forwardRef<HTMLDivElement, AttendancePageProps>(
             )}
           </Col>
         </Row>
+        
+        {/* Floating Add Button */}
+        <FloatingAddButton onClick={handleShowAddModal} />
+        
+        {/* Add Member Modal */}
+        <AddMemberModal
+          show={showAddModal}
+          onHide={handleCloseAddModal}
+          onAddMember={onAddNewMember}
+        />
       </>
     );
   },
