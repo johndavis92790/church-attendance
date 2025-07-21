@@ -1,18 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
-import {
-  Container,
-  Row,
-  Col,
-  ListGroup,
-  Spinner,
-  Button,
-  Form,
-  Alert,
-  Nav,
-  Tab,
-} from "react-bootstrap";
-import { format, parse } from "date-fns";
+import { Container, Tab } from "react-bootstrap";
 import "./sticky-header.css"; // We'll create this file for custom styles
 import {
   GoogleAuthProvider,
@@ -23,6 +11,11 @@ import {
 import { auth } from "./firebase-config";
 import { isUserAuthorized } from "./auth-config";
 import UserManagement from "./components/UserManagement";
+import AuthenticationHeader from "./components/AuthenticationHeader";
+import DateSelector from "./components/DateSelector";
+import TabNavigation from "./components/TabNavigation";
+import AttendanceTab from "./components/AttendanceTab";
+import ErrorAlert from "./components/ErrorAlert";
 
 // Define interfaces for our data types
 interface AttendanceRecord {
@@ -184,16 +177,6 @@ function App() {
     setSaveError(null);
   };
 
-  // Format a date from MM/DD/YYYY to a more readable format
-  const formatDateForDisplay = (dateString: string): string => {
-    try {
-      const date = parse(dateString, "MM/dd/yyyy", new Date());
-      return format(date, "MMMM d, yyyy");
-    } catch (error) {
-      return dateString; // If parsing fails, return the original string
-    }
-  };
-
   // Function to handle date selection change
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
@@ -304,209 +287,62 @@ function App() {
 
   return (
     <Container className="mt-5">
-      <Row className="mb-4 d-flex align-items-center justify-content-between">
-        <Col>
-          <h1>Sunday School Attendance</h1>
-        </Col>
-        <Col xs="auto">
-          {user ? (
-            <Button
-              variant="outline-secondary"
-              onClick={handleSignOut}
-              className="d-flex align-items-center"
-            >
-              <span className="me-2">{user.displayName || user.email}</span>
-              Sign Out
-            </Button>
-          ) : (
-            <Button
-              variant="primary"
-              onClick={handleSignIn}
-              disabled={authLoading}
-            >
-              {authLoading ? (
-                <>
-                  <Spinner
-                    as="span"
-                    animation="border"
-                    size="sm"
-                    role="status"
-                    aria-hidden="true"
-                    className="me-2"
-                  />
-                  Loading...
-                </>
-              ) : (
-                "Sign in with Google"
-              )}
-            </Button>
-          )}
-        </Col>
-      </Row>
+      <AuthenticationHeader
+        user={user}
+        authLoading={authLoading}
+        onSignIn={handleSignIn}
+        onSignOut={handleSignOut}
+      />
 
-      {authError && (
-        <Alert variant="danger" className="mb-4">
-          {authError}
-        </Alert>
-      )}
+      {authError && <ErrorAlert message={authError} />}
 
       {!user ? (
         <div className="text-center py-5">
-          <Alert variant="info">
-            Please sign in with your Google account to access the attendance
-            system.
-          </Alert>
+          <ErrorAlert
+            message="Please sign in with your Google account to access the attendance system."
+            variant="info"
+          />
         </div>
       ) : !isAuthorized ? (
         <div className="text-center py-5">
-          <Alert variant="warning">
-            Your account ({user.email}) is not authorized to access this
-            application. Please contact the administrator to request access.
-          </Alert>
+          <ErrorAlert
+            message={`Your account (${user.email}) is not authorized to access this application. Please contact the administrator to request access.`}
+            variant="warning"
+          />
         </div>
       ) : (
         <>
           {/* Date Selection - Sticky Header (only for attendance tab) */}
           {activeTab === "attendance" && (
-            <div
-              className={`sticky-header ${isSticky ? "sticky" : ""}`}
+            <DateSelector
+              selectedDate={selectedDate}
+              availableDates={availableDates}
+              loading={loading}
+              isSticky={isSticky}
+              onDateChange={handleDateChange}
               ref={headerRef}
-            >
-              <Row className="mb-0">
-                <Col md={6}>
-                  <Form.Group controlId="dateSelect">
-                    <Form.Label style={{ fontSize: "1.2rem", fontWeight: 500 }}>
-                      Select Sunday
-                    </Form.Label>
-                    <Form.Select
-                      value={selectedDate}
-                      onChange={(e) => handleDateChange(e.target.value)}
-                      disabled={loading || availableDates.length === 0}
-                      style={{ fontSize: "1.2rem" }}
-                    >
-                      {availableDates.length === 0 ? (
-                        <option value="">No dates available</option>
-                      ) : (
-                        availableDates.map((date) => (
-                          <option key={date} value={date}>
-                            {formatDateForDisplay(date)}
-                          </option>
-                        ))
-                      )}
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-              </Row>
-            </div>
+            />
           )}
 
           {/* Add some spacing after the sticky header */}
           <div className="main-content mb-3"></div>
 
           {/* Tab navigation */}
-          <Nav
-            variant="tabs"
-            className="mb-4"
-            activeKey={activeTab}
-            onSelect={(k) => k && setActiveTab(k)}
-          >
-            <Nav.Item>
-              <Nav.Link eventKey="attendance">Attendance</Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-              <Nav.Link eventKey="users">Manage Users</Nav.Link>
-            </Nav.Item>
-          </Nav>
+          <TabNavigation activeTab={activeTab} onTabSelect={setActiveTab} />
 
           {/* Tab content */}
           <Tab.Content>
             <Tab.Pane active={activeTab === "attendance"}>
-              {/* Attendance content */}
-              <Row>
-                <Col>
-                  {loading ? (
-                    <div className="text-center py-5">
-                      <Spinner animation="border" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                      </Spinner>
-                    </div>
-                  ) : error ? (
-                    <Alert variant="danger">{error}</Alert>
-                  ) : attendanceRecords.length > 0 ? (
-                    <div>
-                      <ListGroup>
-                        {attendanceRecords.map((record, index) => (
-                          <ListGroup.Item
-                            key={index}
-                            className="d-flex align-items-center justify-content-between py-3"
-                            style={{ cursor: "pointer" }}
-                            onClick={() =>
-                              handleAttendanceChange(index, !record.present)
-                            }
-                          >
-                            <span
-                              style={{ fontSize: "1.2rem", fontWeight: 500 }}
-                            >
-                              {record.name}
-                            </span>
-                            <Form.Check
-                              type="checkbox"
-                              id={`attendance-${index}`}
-                              checked={record.present}
-                              onChange={(e) => {
-                                e.stopPropagation(); // Stop event from bubbling up
-                                handleAttendanceChange(index, !record.present); // Handle toggle directly
-                              }}
-                              onClick={(e) => e.stopPropagation()} // Stop propagation
-                              style={{ transform: "scale(1.5)" }}
-                              className="ms-2"
-                              label=""
-                            />
-                          </ListGroup.Item>
-                        ))}
-                      </ListGroup>
-
-                      <div className="mt-4 d-flex gap-3">
-                        <Button
-                          variant="primary"
-                          onClick={saveAttendanceData}
-                          disabled={saving}
-                        >
-                          {saving ? (
-                            <>
-                              <Spinner
-                                as="span"
-                                animation="border"
-                                size="sm"
-                                role="status"
-                                aria-hidden="true"
-                              />
-                              <span className="ms-2">Saving...</span>
-                            </>
-                          ) : (
-                            "Save Changes"
-                          )}
-                        </Button>
-
-                        {saveSuccess && (
-                          <Alert
-                            variant="success"
-                            className="mb-0 py-2 px-3 d-inline-block"
-                          >
-                            Saved successfully!
-                          </Alert>
-                        )}
-
-                        {saveError && (
-                          <Alert variant="danger">{saveError}</Alert>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <Alert variant="info">No attendance data available.</Alert>
-                  )}
-                </Col>
-              </Row>
+              <AttendanceTab
+                loading={loading}
+                error={error}
+                attendanceRecords={attendanceRecords}
+                saving={saving}
+                saveSuccess={saveSuccess}
+                saveError={saveError}
+                onAttendanceChange={handleAttendanceChange}
+                onSave={saveAttendanceData}
+              />
             </Tab.Pane>
             <Tab.Pane active={activeTab === "users"}>
               {/* User management content */}
