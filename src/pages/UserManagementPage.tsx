@@ -14,11 +14,11 @@ import {
   removeAuthorizedEmail,
 } from "../auth-config";
 
-interface UserManagementProps {
+interface UserManagementPageProps {
   currentUserEmail: string;
 }
 
-const UserManagement: React.FC<UserManagementProps> = ({
+const UserManagementPage: React.FC<UserManagementPageProps> = ({
   currentUserEmail,
 }) => {
   const [authorizedEmails, setAuthorizedEmails] = useState<string[]>([]);
@@ -230,4 +230,4 @@ const UserManagement: React.FC<UserManagementProps> = ({
   );
 };
 
-export default UserManagement;
+export default UserManagementPage;

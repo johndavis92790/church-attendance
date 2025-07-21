@@ -14,7 +14,7 @@ const SaveControls: React.FC<SaveControlsProps> = ({
   onSave,
 }) => {
   return (
-    <div className="mt-4 d-flex gap-3">
+    <div className="m-4 d-flex gap-3">
       <Button variant="primary" onClick={onSave} disabled={saving}>
         {saving ? (
           <>

@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { Container, Tab } from "react-bootstrap";
+import { Container } from "react-bootstrap";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import "./sticky-header.css"; // We'll create this file for custom styles
 import {
   GoogleAuthProvider,
@@ -10,12 +16,10 @@ import {
 } from "firebase/auth";
 import { auth } from "./firebase-config";
 import { isUserAuthorized } from "./auth-config";
-import UserManagement from "./components/UserManagement";
-import AuthenticationHeader from "./components/AuthenticationHeader";
-import DateSelector from "./components/DateSelector";
-import TabNavigation from "./components/TabNavigation";
-import AttendanceTab from "./components/AttendanceTab";
+import HamburgerMenu from "./components/HamburgerMenu";
 import ErrorAlert from "./components/ErrorAlert";
+import AttendancePage from "./pages/AttendancePage";
+import UserManagementPage from "./pages/UserManagementPage";
 
 // Define interfaces for our data types
 interface AttendanceRecord {
@@ -73,9 +77,6 @@ function App() {
 
   // Ref for header element
   const headerRef = useRef<HTMLDivElement>(null);
-
-  // State for active tab
-  const [activeTab, setActiveTab] = useState<string>("attendance");
 
   // URLs for our Cloud Functions
   const [dataUrl] = useState<string>(
@@ -286,72 +287,64 @@ function App() {
   }, []);
 
   return (
-    <Container className="mt-5">
-      <AuthenticationHeader
+    <Router>
+      <HamburgerMenu
         user={user}
         authLoading={authLoading}
         onSignIn={handleSignIn}
         onSignOut={handleSignOut}
       />
 
-      {authError && <ErrorAlert message={authError} />}
+      <Container className="mt-3">
+        {authError && <ErrorAlert message={authError} />}
 
-      {!user ? (
-        <div className="text-center py-5">
-          <ErrorAlert
-            message="Please sign in with your Google account to access the attendance system."
-            variant="info"
-          />
-        </div>
-      ) : !isAuthorized ? (
-        <div className="text-center py-5">
-          <ErrorAlert
-            message={`Your account (${user.email}) is not authorized to access this application. Please contact the administrator to request access.`}
-            variant="warning"
-          />
-        </div>
-      ) : (
-        <>
-          {/* Date Selection - Sticky Header (only for attendance tab) */}
-          {activeTab === "attendance" && (
-            <DateSelector
-              selectedDate={selectedDate}
-              availableDates={availableDates}
-              loading={loading}
-              isSticky={isSticky}
-              onDateChange={handleDateChange}
-              ref={headerRef}
+        {!user ? (
+          <div className="text-center py-5">
+            <ErrorAlert
+              message="Please sign in with your Google account to access the attendance system."
+              variant="info"
             />
-          )}
-
-          {/* Add some spacing after the sticky header */}
-          <div className="main-content mb-3"></div>
-
-          {/* Tab navigation */}
-          <TabNavigation activeTab={activeTab} onTabSelect={setActiveTab} />
-
-          {/* Tab content */}
-          <Tab.Content>
-            <Tab.Pane active={activeTab === "attendance"}>
-              <AttendanceTab
-                loading={loading}
-                error={error}
-                attendanceRecords={attendanceRecords}
-                saving={saving}
-                saveSuccess={saveSuccess}
-                saveError={saveError}
-                onAttendanceChange={handleAttendanceChange}
-                onSave={saveAttendanceData}
-              />
-            </Tab.Pane>
-            <Tab.Pane active={activeTab === "users"}>
-              {/* User management content */}
-              <UserManagement currentUserEmail={user?.email || ""} />
-            </Tab.Pane>
-          </Tab.Content>
-        </>
-      )}
-    </Container>
+          </div>
+        ) : !isAuthorized ? (
+          <div className="text-center py-5">
+            <ErrorAlert
+              message={`Your account (${user.email}) is not authorized to access this application. Please contact the administrator to request access.`}
+              variant="warning"
+            />
+          </div>
+        ) : (
+          <Routes>
+            <Route path="/" element={<Navigate to="/attendance" replace />} />
+            <Route
+              path="/attendance"
+              element={
+                <AttendancePage
+                  ref={headerRef}
+                  selectedDate={selectedDate}
+                  availableDates={availableDates}
+                  loading={loading}
+                  error={error}
+                  attendanceRecords={attendanceRecords}
+                  saving={saving}
+                  saveSuccess={saveSuccess}
+                  saveError={saveError}
+                  isSticky={isSticky}
+                  onDateChange={handleDateChange}
+                  onAttendanceChange={handleAttendanceChange}
+                  onSave={saveAttendanceData}
+                />
+              }
+            />
+            <Route
+              path="/users"
+              element={
+                <UserManagementPage currentUserEmail={user?.email || ""} />
+              }
+            />
+          </Routes>
+        )}
+      </Container>
+    </Router>
   );
 }
 
